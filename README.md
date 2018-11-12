@@ -13,7 +13,7 @@ SYNOPSIS
 
 
 SYNTAX
-    C:\users\alomb4\documents\powershell\hp-install.ps1 [-remotepc] <String> [-port] <String> [-printerName] <Strin
+    ./hp-install.ps1 [-remotepc] <String> [-port] <String> [-printerName] <Strin
     [[-enableBdi] <Boolean>] [<CommonParameters>]
 
 
