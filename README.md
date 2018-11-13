@@ -59,7 +59,7 @@ PARAMETERS
 
 
 REMARKS
-    To see the examples, type: "get-help C:\users\alomb4\documents\powershell\hp-install.ps1 -examples".
-    For more information, type: "get-help C:\users\alomb4\documents\powershell\hp-install.ps1 -detailed".
-    For technical information, type: "get-help C:\users\alomb4\documents\powershell\hp-install.ps1 -full".
+    To see the examples, type: "get-help hp-install.ps1 -examples".
+    For more information, type: "get-help hp-install.ps1 -detailed".
+    For technical information, type: "get-help hp-install.ps1 -full".
 
