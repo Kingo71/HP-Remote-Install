@@ -11,30 +11,26 @@ HOST name or IP address of the remote PC where to install the printer
 Printer IP Address
 .PARAMETER printerName 
 Printer name to show in the installed printer list
-.PARAMETER enableBdi
-Set to $false if you want to disable the bidirectional printing (set to $false for HP p1606)
 .EXAMPLE
-./hp-install.ps1 hostpc 10.20.30.40 printername $true
+./hp-install.ps1 hostpc 10.20.30.40 printername 
 .EXAMPLE
-./hp-install.ps1 hostpc 10.20.30.40 printername (Bidirectional enabled by default)
+./hp-install.ps1 hostpc 10.20.30.40 printername 
 
-.NOTES
-For HP p1606 set the bidirectional to $false
+
 
 #>
 param ([Parameter(Mandatory=$true,HelpMessage="PC host name or address is required")][string]$remotepc,
 [Parameter(Mandatory=$true,HelpMessage="Printer's IP Address is required")][string]$port,
-[Parameter(Mandatory=$true,HelpMessage="Printer name is required")][string]$printerName, 
-[bool]$enableBdi=$true)
+[Parameter(Mandatory=$true,HelpMessage="Printer name is required")][string]$printerName)
 
-
-Add-Type -assembly "system.io.compression.filesystem"
 
 $DrvName = "HP Universal Printing PCL 6"
 
 $DriverPath = "C:\HP Universal driver\"
 
-$DriverInf = "hpbuio200l.inf"
+$DriverInf = "hpcu215u.inf"
+
+$portname = $port + "_"
 
 $errorflag = $false
 
@@ -45,6 +41,8 @@ $dest = "\\"+ $remotepc + "\c$\"
 $destzip = $dest + "hpgeneric.zip"
 
 $destDriverPath = $dest + $DriverPath.SubString($DriverPath.length - 20, 20)
+
+$infPath = $DriverPath + $DriverInf
 
 $isDriver =$true
 $isPort = $true
@@ -57,7 +55,9 @@ function Unzip
 
     Write-Host "Unzipping..."
 
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipfile, $outpath)
+    Invoke-Command -ComputerName $remotepc {
+        Add-Type -assembly "system.io.compression.filesystem"
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($using:zipfile, $using:outpath)}
 }
 
 Function CreatePrinterPort {
@@ -87,15 +87,30 @@ Function InstallPrinterDriver {
     }
 
 Function CreatePrinter {
-    Param ($PrinterCaption, $PrinterPortName, $DriverName, $Computer , $EnableBIDI)
+    Param ($PrinterCaption, $PrinterPortName, $DriverName, $Computer)
     $WMI = ([WMIClass]"\\$Computer\Root\cimv2:Win32_Printer")
     $Printer = $WMI.CreateInstance()
     $Printer.Caption = $PrinterCaption
     $Printer.DriverName = $DriverName
     $Printer.PortName = $PrinterPortName
     $Printer.DeviceID = $PrinterCaption
-    $Printer.EnableBIDI = $EnableBIDI
     $Printer.Put()
+    }
+Function PortCheck {
+        Param ($Computer, $ckportname)
+        Write-Host "Check for installed port..."
+        $instPort = Get-PrinterPort -ComputerName $Computer -ErrorAction Stop 
+            
+        foreach ($ports in $instPort) {
+            
+            if ($ports.name -contains $ckportname){
+            
+                Write-Host "port " $ckportname " already installed! Skip installation...`r`n"
+                return $true
+            }
+    
+        }
+    
     }
 
 # Registry patch function    
@@ -133,11 +148,34 @@ Function RegistryFix {
     Write-Host "Restart the command to install the printer."
 }
 
+try {
 
+    Write-Host "Check for installed printer..."
+    $instPrinter = Get-Printer -ComputerName $remotepc -ErrorAction Stop
+
+}
+catch {
+
+    RegistryFix
+    exit
+
+}
+
+foreach ($printers in $instPrinter) {
+    
+    if ($printers.name -contains $printerName){
+    
+        Write-Host " printer " $printerName " already installed! Exit installation..."
+        $isPrinter = $true
+        exit 
+    }
+
+    $isPrinter = $false
+}
 
 try {
 
-    Write-Host "Check for installed driver...`r`n"
+    Write-Host "Check for installed driver..."
     $instDriver = Get-PrinterDriver -ComputerName $remotepc -ErrorAction Stop
 
 }
@@ -152,7 +190,7 @@ foreach ($driver in $instDriver) {
     
     if ($driver.name -contains $DrvName){
 
-        Write-Host $DrvName " already installed! Skip installation..."
+        Write-Host $DrvName " already installed! Skip installation...`r`n"
         $isDriver = $true
         break
     }
@@ -177,7 +215,7 @@ if (!$isDriver){
         if (!$testPath) {
 
         Copy-Item -Path $spath -Destination $dest
-
+        Write-Host "`r`nDone!`r`n"
         
         }
         else {
@@ -193,6 +231,7 @@ if (!$isDriver){
             Write-Host "`r`nUnzip driver to " $dest
 
             Unzip $destzip $dest
+            Write-Host "`r`nDone!`r`n"
             
         }
         else {
@@ -203,8 +242,12 @@ if (!$isDriver){
         
         
         Write-Host "`r`nInstalling printer driver " $DrvName " for " $remotepc "`r`n"
-
-        InstallPrinterDriver $DrvName $DriverPath $DriverInf $remotepc
+        
+        # Invoke-Command -ComputerName $remotepc {pnputil.exe -a "C:\HP Universal driver\hpcu215u.inf" }
+        Invoke-Command -ComputerName $remotepc {pnputil.exe -a $using:infPath}
+        add-printerdriver -computername $remotepc -name $DrvName
+        Write-Host "`r`nDone!`r`n"
+        # InstallPrinterDriver $DrvName $DriverPath $DriverInf $remotepc
     
     }
     catch {
@@ -214,39 +257,18 @@ if (!$isDriver){
 
 }
 
-try {
+$isPort = PortCheck $remotepc $portname
 
-    Write-Host "Check for installed port...`r`n"
-    $instPort = Get-PrinterPort -ComputerName $remotepc -ErrorAction Stop 
-
-}
-catch {
-
-    RegistryFix
-    exit
+if (!$isPort) {
     
-}
-
-foreach ($ports in $instPort) {
-    
-    if ($ports.name -contains $port){
-    
-        Write-Host "port " $port " already installed! Skip installation..."
-        $isPort = $true
-        break
-    }
-
-    $isPort = $false
-}
-
-if (!$isPort){
-
-    Write-Host "Installing port  " $port " for " $remotepc
+    Write-Host "Installing port  " $portname " for " $remotepc
 
     try {
 
-        CreatePrinterPort $port 9100 $port $remotepc
-    
+        #CreatePrinterPort $port 9100 $port $remotepc
+        Add-PrinterPort -ComputerName $remotepc -Name $portname -PrinterHostAddress $port
+        Write-Host "`r`nDone!`r`n"
+        
     }
     catch {
         Write-Host "Installation failed!"
@@ -256,39 +278,15 @@ if (!$isPort){
 }
 
 
-try {
-
-    Write-Host "Check for installed printer..."
-    $instPrinter = Get-Printer -ComputerName $remotepc -ErrorAction Stop
-
-}
-catch {
-
-    RegistryFix
-    exit
-
-}
-
-foreach ($printers in $instPrinter) {
-    
-    if ($printers.name -contains $printerName){
-    
-        Write-Host "`r`nprinter " $printerName " already installed! Skip installation..."
-        $isPrinter = $true
-        break
-    }
-
-    $isPrinter = $false
-}
-
 if (!$isPrinter){
 
     Write-Host "`r`nInstalling " $printerName " for " $remotepc
 
     try {
         
-        CreatePrinter -PrinterCaption $printerName -PrinterPortName $port -DriverName $DrvName -Computer $remotepc -EnableBIDI $enableBdi
-        
+        CreatePrinter -PrinterCaption $printerName -PrinterPortName $portname -DriverName $DrvName -Computer $remotepc
+        Write-Host "`r`nDone!`r`n"
+        #Add-Printer -Name $printerName -DriverName $DrvName -PortName $portname
     }
     catch {
         Write-Host "Installation failed!"
