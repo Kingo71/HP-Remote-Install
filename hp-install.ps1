@@ -59,33 +59,6 @@ function Unzip
         Add-Type -assembly "system.io.compression.filesystem"
         [System.IO.Compression.ZipFile]::ExtractToDirectory($using:zipfile, $using:outpath)}
 }
-
-Function CreatePrinterPort {
-    Param ($PrinterIP, $PrinterPort, $PrinterPortName, $Computer)
-    $WMI = [WMIClass]"\\$Computer\Root\cimv2:win32_tcpipPrinterPort"
-    $WMI.psbase.scope.options.enablePrivileges = $True
-    $Port = $WMI.createInstance()
-    $Port.name = $PrinterPortName
-    $Port.hostAddress = $PrinterIP
-    $Port.portNumber = $PrinterPort
-    $Port.SNMPEnabled = $False
-    $Port.Protocol = 1
-    $Port.put()
-    }
-
-Function InstallPrinterDriver {
-    Param ($DriverName, $DriverPath, $DriverInf, $Computer)
-    $WMI = [WMIClass]"\\$Computer\Root\cimv2:Win32_PrinterDriver"
-    $WMI.psbase.scope.options.enablePrivileges = $True
-    $WMI.psbase.Scope.Options.Impersonation = [System.Management.ImpersonationLevel]::Impersonate
-    $Driver = $WMI.CreateInstance()
-    $Driver.Name = $DriverName
-    $Driver.DriverPath = $DriverPath
-    $Driver.InfName = $DriverInf
-    $WMI.AddPrinterDriver($Driver)
-    $WMI.Put()
-    }
-
 Function CreatePrinter {
     Param ($PrinterCaption, $PrinterPortName, $DriverName, $Computer)
     $WMI = ([WMIClass]"\\$Computer\Root\cimv2:Win32_Printer")
@@ -112,6 +85,66 @@ Function PortCheck {
         }
     
     }
+
+Function DriverCheck {
+        Param ($computername, $drivername)
+        try {
+    
+            Write-Host "Check for installed driver..."
+            $instDriver = Get-PrinterDriver -ComputerName $computername -ErrorAction Stop
+        
+        }
+        catch {
+        
+            RegistryFix
+            exit
+            
+        }
+        
+        foreach ($driver in $instDriver) {
+            
+            if ($driver.name -contains $drivername){
+        
+                Write-Host $drivername " already installed! Skip installation...`r`n"
+                return $true
+            }
+            
+        }
+    
+        return $false
+    
+    }
+
+Function PrinterCheck {
+
+    try {
+
+        Write-Host "Check for installed printer..."
+        $instPrinter = Get-Printer -ComputerName $remotepc -ErrorAction Stop
+    
+    }
+    catch {
+    
+        RegistryFix
+        exit
+    
+    }
+    
+    foreach ($printers in $instPrinter) {
+        
+        if ($printers.name -contains $printerName){
+        
+            Write-Host "Printer " $printerName " already installed! Exit installation...`r`n"
+            Exit
+        }
+    
+        
+    }
+
+    Write-Host "Printer " $printerName " Not found, continue installation...`r`n"
+    return 
+
+}
 
 # Registry patch function    
 Function RegistryFix {
@@ -148,57 +181,10 @@ Function RegistryFix {
     Write-Host "Restart the command to install the printer."
 }
 
-try {
 
-    Write-Host "Check for installed printer..."
-    $instPrinter = Get-Printer -ComputerName $remotepc -ErrorAction Stop
+$isPrinter = PrinterCheck
 
-}
-catch {
-
-    RegistryFix
-    exit
-
-}
-
-foreach ($printers in $instPrinter) {
-    
-    if ($printers.name -contains $printerName){
-    
-        Write-Host " printer " $printerName " already installed! Exit installation..."
-        $isPrinter = $true
-        exit 
-    }
-
-    $isPrinter = $false
-}
-
-try {
-
-    Write-Host "Check for installed driver..."
-    $instDriver = Get-PrinterDriver -ComputerName $remotepc -ErrorAction Stop
-
-}
-catch {
-
-    RegistryFix
-    exit
-    
-}
-
-foreach ($driver in $instDriver) {
-    
-    if ($driver.name -contains $DrvName){
-
-        Write-Host $DrvName " already installed! Skip installation...`r`n"
-        $isDriver = $true
-        break
-    }
-
-    $isDriver = $false
-
-}
-
+$isDriver = DriverCheck $remotepc $DrvName
 
 if (!$isDriver){
 
