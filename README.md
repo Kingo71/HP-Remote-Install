@@ -13,8 +13,7 @@ SYNOPSIS
 
 
 SYNTAX
-    ./hp-install.ps1 [-remotepc] <String> [-port] <String> [-printerName] <Strin
-    [[-enableBdi] <Boolean>] [<CommonParameters>]
+    ./hp-install.ps1 [-remotepc] <String> [-port] <String> [-printerName] <String> [<CommonParameters>]
 
 
 DESCRIPTION
@@ -31,9 +30,6 @@ PARAMETERS
     -printerName <String>
         Printer name to show in the installed printer list
 
-    -enableBdi <Boolean>
-        Set to $false if you want to disable the bidirectional printing (set to $false for HP p1606)
-
     <CommonParameters>
         This cmdlet supports the common parameters: Verbose, Debug,
         ErrorAction, ErrorVariable, WarningAction, WarningVariable,
@@ -42,18 +38,7 @@ PARAMETERS
 
     -------------------------- EXAMPLE 1 --------------------------
 
-    PS C:\>./hp-install.ps1 hostpc 10.20.30.40 printername $true
-
-
-
-
-
-
-    -------------------------- EXAMPLE 2 --------------------------
-
-    PS C:\>./hp-install.ps1 hostpc 10.20.30.40 printername (Bidirectional enabled by default)
-
-
+    PS C:\>./hp-install.ps1 hostpc 10.20.30.40 printername
 
 
 
