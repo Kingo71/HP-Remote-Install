@@ -3,7 +3,7 @@ Powershell script to remote install HP Printers with Generic PCL6 driver
 
 
 
-get-help .\hp-install.ps1 -detailed
+get-help ./hp-install.ps1 -detailed
 
 NAME
     hp-install.ps1
