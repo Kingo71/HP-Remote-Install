@@ -19,9 +19,9 @@ Printer name to show in the installed printer list
 
 
 #>
-param ([Parameter(Mandatory=$true,HelpMessage="PC host name or address is required")][string]$remotepc,
-[Parameter(Mandatory=$true,HelpMessage="Printer's IP Address is required")][string]$port,
-[Parameter(Mandatory=$true,HelpMessage="Printer name is required")][string]$printerName)
+param ([Parameter(Mandatory = $true, HelpMessage = "PC host name or address is required")][string]$remotepc,
+    [Parameter(Mandatory = $true, HelpMessage = "Printer's IP Address is required")][string]$port,
+    [Parameter(Mandatory = $true, HelpMessage = "Printer name is required")][string]$printerName)
 
 
 $DrvName = "HP Universal Printing PCL 6"
@@ -36,7 +36,7 @@ $errorflag = $false
 
 $spath = Split-Path -Parent $PSCommandPath
 
-$dest = "\\"+ $remotepc + "\c$\"
+$dest = "\\" + $remotepc + "\c$\"
 
 $destzip = $dest + "hpgeneric.zip"
 
@@ -44,20 +44,19 @@ $destDriverPath = $dest + $DriverPath.SubString($DriverPath.length - 20, 20)
 
 $infPath = $DriverPath + $DriverInf
 
-$isDriver =$true
+$isDriver = $true
 $isPort = $true
 $isPrinter = $true
 
 # Unzip function
-function Unzip
-{
+function Unzip {
     param([string]$zipfile, [string]$outpath)
 
     Write-Host "Unzipping..."
 
     Invoke-Command -ComputerName $remotepc {
         Add-Type -assembly "system.io.compression.filesystem"
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($using:zipfile, $using:outpath)}
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($using:zipfile, $using:outpath) }
 }
 Function CreatePrinter {
     Param ($PrinterCaption, $PrinterPortName, $DriverName, $Computer)
@@ -68,52 +67,52 @@ Function CreatePrinter {
     $Printer.PortName = $PrinterPortName
     $Printer.DeviceID = $PrinterCaption
     $Printer.Put()
-    }
+}
 Function PortCheck {
-        Param ($Computer, $ckportname)
-        Write-Host "Check for installed port..."
-        $instPort = Get-PrinterPort -ComputerName $Computer -ErrorAction Stop 
+    Param ($Computer, $ckportname)
+    Write-Host "Check for installed port..."
+    $instPort = Get-PrinterPort -ComputerName $Computer -ErrorAction Stop 
             
-        foreach ($ports in $instPort) {
+    foreach ($ports in $instPort) {
             
-            if ($ports.name -contains $ckportname){
+        if ($ports.name -contains $ckportname) {
             
-                Write-Host "port " $ckportname " already installed! Skip installation...`r`n"
-                return $true
-            }
-    
+            Write-Host "port " $ckportname " already installed! Skip installation...`r`n"
+            return $true
         }
     
     }
+    
+}
 
 Function DriverCheck {
-        Param ($computername, $drivername)
-        try {
+    Param ($computername, $drivername)
+    try {
     
-            Write-Host "Check for installed driver..."
-            $instDriver = Get-PrinterDriver -ComputerName $computername -ErrorAction Stop
+        Write-Host "Check for installed driver..."
+        $instDriver = Get-PrinterDriver -ComputerName $computername -ErrorAction Stop
         
-        }
-        catch {
-        
-            RegistryFix
-            exit
-            
-        }
-        
-        foreach ($driver in $instDriver) {
-            
-            if ($driver.name -contains $drivername){
-        
-                Write-Host $drivername " already installed! Skip installation...`r`n"
-                return $true
-            }
-            
-        }
-    
-        return $false
-    
     }
+    catch {
+        
+        RegistryFix
+        exit
+            
+    }
+        
+    foreach ($driver in $instDriver) {
+            
+        if ($driver.name -contains $drivername) {
+        
+            Write-Host $drivername " already installed! Skip installation...`r`n"
+            return $true
+        }
+            
+    }
+    
+    return $false
+    
+}
 
 Function PrinterCheck {
 
@@ -132,7 +131,7 @@ Function PrinterCheck {
     
     foreach ($printers in $instPrinter) {
         
-        if ($printers.name -contains $printerName){
+        if ($printers.name -contains $printerName) {
         
             Write-Host "Printer " $printerName " already installed! Exit installation...`r`n"
             Exit
@@ -150,31 +149,30 @@ Function PrinterCheck {
 Function RegistryFix {
 
 
-        $scriptBlock = { 
+    $scriptBlock = { 
 
-            $registryPath = "HKLM:\Software\Policies\Microsoft\Windows NT\Printers"
+        $registryPath = "HKLM:\Software\Policies\Microsoft\Windows NT\Printers"
         
-            $Name = "RegisterSpoolerRemoteRpcEndPoint"
+        $Name = "RegisterSpoolerRemoteRpcEndPoint"
         
-            $value = "1"
+        $value = "1"
             
-            IF(!(Test-Path $registryPath))
-        
-            {
+        IF (!(Test-Path $registryPath))
+        {
         
             New-Item -Path $registryPath -Force | Out-Null
         
             New-ItemProperty -Path $registryPath -Name $name -Value $value -PropertyType DWORD -Force | Out-Null
         
-            }
-            ELSE {
+        }
+        ELSE {
             
-                New-ItemProperty -Path $registryPath -Name $name -Value $value -PropertyType DWORD -Force | Out-Null
-            }
+            New-ItemProperty -Path $registryPath -Name $name -Value $value -PropertyType DWORD -Force | Out-Null
+        }
             
-            Restart-Service -Name Spooler -Verbose -Force
+        Restart-Service -Name Spooler -Verbose -Force
             
-            }
+    }
 
     Write-Host "Unable to get the remote spooler, fixing the remote registry..."
     Invoke-Command -ComputerName $remotepc -ScriptBlock $scriptBlock
@@ -186,7 +184,7 @@ $isPrinter = PrinterCheck
 
 $isDriver = DriverCheck $remotepc $DrvName
 
-if (!$isDriver){
+if (!$isDriver) {
 
     Write-Host "`r`rProcessing printer driver " $DrvName " for " $remotepc
 
@@ -200,8 +198,8 @@ if (!$isDriver){
 
         if (!$testPath) {
 
-        Copy-Item -Path $spath -Destination $dest
-        Write-Host "`r`nDone!`r`n"
+            Copy-Item -Path $spath -Destination $dest
+            Write-Host "`r`nDone!`r`n"
         
         }
         else {
@@ -212,7 +210,7 @@ if (!$isDriver){
 
         $testPath = Test-Path -Path $destDriverPath
 
-        if (!$testPath){
+        if (!$testPath) {
 
             Write-Host "`r`nUnzip driver to " $dest
 
@@ -230,7 +228,7 @@ if (!$isDriver){
         Write-Host "`r`nInstalling printer driver " $DrvName " for " $remotepc "`r`n"
         
         # Invoke-Command -ComputerName $remotepc {pnputil.exe -a "C:\HP Universal driver\hpcu215u.inf" }
-        Invoke-Command -ComputerName $remotepc {pnputil.exe -a $using:infPath}
+        Invoke-Command -ComputerName $remotepc { pnputil.exe -a $using:infPath }
         add-printerdriver -computername $remotepc -name $DrvName
         Write-Host "`r`nDone!`r`n"
         # InstallPrinterDriver $DrvName $DriverPath $DriverInf $remotepc
@@ -264,7 +262,7 @@ if (!$isPort) {
 }
 
 
-if (!$isPrinter){
+if (!$isPrinter) {
 
     Write-Host "`r`nInstalling " $printerName " for " $remotepc
 
@@ -280,13 +278,13 @@ if (!$isPrinter){
     }
 }
 
-if ($errorflag){
+if ($errorflag) {
 
     Write-Host "`r`nInstallation completed with errors on  " $remotepc
     
 }
 else {
-Write-Host "`r`nInstallation successfully completed on  " $remotepc
+    Write-Host "`r`nInstallation successfully completed on  " $remotepc
 }
 
 
